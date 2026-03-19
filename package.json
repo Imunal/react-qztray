@@ -1,6 +1,6 @@
 {
 	"name": "react-qztray",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "React hooks for seamless integration with QZ Tray (qz.io)",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
