@@ -24,12 +24,20 @@ export const ConnectionStatus = () => {
 
 			<button
 				type="button"
-				onClick={connect}
+				onClick={() => {
+					void connect().catch(() => undefined);
+				}}
 				disabled={isConnected || isConnecting}
 			>
 				Connect
 			</button>
-			<button type="button" onClick={disconnect} disabled={!isConnected}>
+			<button
+				type="button"
+				onClick={() => {
+					void disconnect().catch(() => undefined);
+				}}
+				disabled={!isConnected}
+			>
 				Disconnect
 			</button>
 		</div>

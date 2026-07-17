@@ -63,22 +63,27 @@ import { useQzTray, useQzPrint } from 'react-qztray';
 
 const PrintButton = () => {
   const { isConnected, connect } = useQzTray();
-  const { print, isPrinting } = useQzPrint();
+  const { print, isPrinting, error } = useQzPrint();
 
   const handlePrint = async () => {
-    if (!isConnected) await connect();
+    try {
+      if (!isConnected) await connect();
 
-    print({
-      printer: 'ZDesigner',
-      config: { size: { width: 100, height: 150 }, units: 'mm' },
-      data: [{ type: 'pixel', format: 'html', flavor: 'plain', data: '<h1>Hello!</h1>' }],
-    });
+      await print({
+        printer: 'ZDesigner',
+        config: { size: { width: 100, height: 150 }, units: 'mm' },
+        data: [{ type: 'pixel', format: 'html', flavor: 'plain', data: '<h1>Hello!</h1>' }],
+      });
+    } catch (printError) {
+      console.error(printError);
+    }
   };
 
   return (
     <button onClick={handlePrint} disabled={isPrinting}>
       {isPrinting ? 'Printing...' : 'Print'}
     </button>
+    {error && <p>{error instanceof Error ? error.message : String(error)}</p>}
   );
 };
 ```
@@ -90,6 +95,7 @@ const PrintButton = () => {
 ### `QzTrayProvider`
 
 Provides QZ Tray context to all child hooks. Place it at the root of your app.
+Use one provider per application because QZ Tray keeps a global WebSocket and callback registry.
 
 | Prop | Type | Required | Description |
 |---|---|---|---|
@@ -101,6 +107,8 @@ Provides QZ Tray context to all child hooks. Place it at the root of your app.
 | `onConnect` | `() => void` | | Called when the connection is established. |
 | `onDisconnect` | `() => void` | | Called when the connection is closed. |
 | `onError` | `(error: unknown) => void` | | Called on connection error. |
+
+`connect()` rejects when the connection fails. `onError` and the provider's `error` state are also updated.
 
 ---
 
@@ -132,7 +140,7 @@ const { print, isPrinting, error } = useQzPrint();
 
 | Return | Type | Description |
 |---|---|---|
-| `print` | `(options: IPrintOptions) => Promise<void>` | Send a print job. Connects automatically if not connected. |
+| `print` | `(options: IPrintOptions) => Promise<void>` | Send a print job. Connects automatically if not connected and rejects on failure. |
 | `isPrinting` | `boolean` | Whether a print job is in progress. |
 | `error` | `unknown` | Last print error, or `null`. |
 
@@ -143,7 +151,9 @@ const { print, isPrinting, error } = useQzPrint();
 | `printer` | `string` | ✓ | Printer name as it appears in the OS. |
 | `data` | `PrintData[]` | ✓ | Array of print data objects. |
 | `config` | `PrinterOptions` | | Paper size, units, density, orientation, etc. |
-| `autoDisconnect` | `boolean` | | Disconnect after the job completes. Defaults to `true`. |
+| `autoDisconnect` | `boolean` | | Disconnect after the job completes only when this call opened the connection. Defaults to `true`. |
+
+Only one print job can run at a time per `useQzPrint` instance. Overlapping calls reject with an error.
 
 ---
 

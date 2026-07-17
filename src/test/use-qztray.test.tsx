@@ -91,7 +91,9 @@ describe("given useQzTray is used inside QzTrayContextProvider", () => {
 
 			// when
 			await act(async () => {
-				await result.current.connect();
+				await expect(result.current.connect()).rejects.toThrow(
+					"QZ Tray not running",
+				);
 			});
 
 			// then
@@ -106,7 +108,7 @@ describe("given useQzTray is used inside QzTrayContextProvider", () => {
 
 			// when
 			await act(async () => {
-				await result.current.connect();
+				await expect(result.current.connect()).rejects.toBe(connectionError);
 			});
 
 			// then
@@ -136,11 +138,43 @@ describe("given useQzTray is used inside QzTrayContextProvider", () => {
 
 			// when
 			await act(async () => {
-				await result.current.connect();
+				await expect(result.current.connect()).rejects.toThrow(
+					"QZ Tray not running",
+				);
 			});
 
 			// then
 			expect(onError).toHaveBeenCalled();
+		});
+
+		describe("when multiple connect calls overlap", () => {
+			it("then only opens one QZ connection", async () => {
+				// given
+				let resolveConnection!: () => void;
+				vi.mocked(qz.websocket.connect).mockReturnValueOnce(
+					new Promise<void>((resolve) => {
+						resolveConnection = resolve;
+					}),
+				);
+				const { result } = renderHook(() => useQzTray(), { wrapper });
+
+				// when
+				let firstConnection!: Promise<void>;
+				let secondConnection!: Promise<void>;
+				await act(async () => {
+					firstConnection = result.current.connect();
+					secondConnection = result.current.connect();
+					await Promise.resolve();
+				});
+
+				// then
+				expect(qz.websocket.connect).toHaveBeenCalledTimes(1);
+
+				resolveConnection();
+				await act(async () => {
+					await Promise.all([firstConnection, secondConnection]);
+				});
+			});
 		});
 	});
 
@@ -170,6 +204,38 @@ describe("given useQzTray is used inside QzTrayContextProvider", () => {
 
 			// then
 			expect(qz.websocket.disconnect).toHaveBeenCalled();
+		});
+
+		it("then calls onDisconnect exactly once", async () => {
+			// given
+			const onDisconnect = vi.fn();
+			const wrapperWithDisconnect = ({ children }: { children: ReactNode }) => (
+				<QzTrayContextProvider
+					certificate="-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----"
+					signaturePromise={vi.fn()}
+					onDisconnect={onDisconnect}
+				>
+					{children}
+				</QzTrayContextProvider>
+			);
+			const { result } = renderHook(() => useQzTray(), {
+				wrapper: wrapperWithDisconnect,
+			});
+			vi.mocked(qz.websocket.disconnect).mockImplementationOnce(async () => {
+				const callback = vi
+					.mocked(qz.websocket.setClosedCallbacks)
+					.mock.calls.at(-1)?.[0];
+				if (typeof callback === "function") callback({});
+			});
+
+			// when
+			await act(async () => {
+				await result.current.connect();
+				await result.current.disconnect();
+			});
+
+			// then
+			expect(onDisconnect).toHaveBeenCalledTimes(1);
 		});
 	});
 });

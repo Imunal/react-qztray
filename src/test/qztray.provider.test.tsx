@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import qz from "qz-tray";
 import { describe, expect, it, vi } from "vitest";
 import { QzTrayContextProvider } from "../qztray.context";
@@ -57,6 +57,9 @@ describe("given QzTrayContextProvider is mounted", () => {
 			// given
 			// when
 			render(<QzTrayContextProvider {...defaultProps} autoConnect />);
+			await act(async () => {
+				await Promise.resolve();
+			});
 
 			// then
 			expect(qz.websocket.connect).toHaveBeenCalled();
@@ -71,6 +74,70 @@ describe("given QzTrayContextProvider is mounted", () => {
 
 			// then
 			expect(qz.websocket.connect).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("when the provider unmounts", () => {
+		it("then clears QZ Tray callbacks", () => {
+			// given / when
+			const { unmount } = render(<QzTrayContextProvider {...defaultProps} />);
+			unmount();
+
+			// then
+			expect(qz.websocket.setClosedCallbacks).toHaveBeenLastCalledWith([]);
+			expect(qz.websocket.setErrorCallbacks).toHaveBeenLastCalledWith([]);
+		});
+	});
+
+	describe("when autoConnect receives unstable callback props", () => {
+		it("then does not reconnect after a parent rerender", async () => {
+			// given
+			const { rerender } = render(
+				<QzTrayContextProvider
+					{...defaultProps}
+					autoConnect
+					onConnect={() => undefined}
+					wsOptions={{}}
+				/>,
+			);
+			await act(async () => {
+				await Promise.resolve();
+			});
+
+			// when
+			await act(async () => {
+				rerender(
+					<QzTrayContextProvider
+						{...defaultProps}
+						autoConnect
+						onConnect={() => undefined}
+						wsOptions={{}}
+					/>,
+				);
+				await Promise.resolve();
+			});
+
+			// then
+			expect(qz.websocket.connect).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("when the async certificate provider rejects", () => {
+		it("then exposes the rejection through QZ Tray's certificate handler", async () => {
+			// given
+			const certificateError = new Error("Certificate request failed");
+			const certificate = vi.fn().mockRejectedValue(certificateError);
+			render(
+				<QzTrayContextProvider {...defaultProps} certificate={certificate} />,
+			);
+			const handler = vi
+				.mocked(qz.security.setCertificatePromise)
+				.mock.calls.at(-1)?.[0];
+
+			// when / then
+			await expect((handler as () => Promise<string>)()).rejects.toBe(
+				certificateError,
+			);
 		});
 	});
 });

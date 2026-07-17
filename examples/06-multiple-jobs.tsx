@@ -11,41 +11,45 @@ export const PrintMultipleJobs = () => {
 	const { print, isPrinting, error } = useQzPrint();
 
 	const handlePrint = async () => {
-		await print({
-			printer: "Godex RT230i",
-			config: {
-				size: { width: 32, height: 25 },
-				units: "mm",
-				colorType: "grayscale",
-			},
-			data: [
-				{
-					type: "pixel",
-					format: "html",
-					flavor: "plain",
-					data: "<p style='font-family:sans-serif;font-size:12px'>Production label</p>",
+		try {
+			await print({
+				printer: "Godex RT230i",
+				config: {
+					size: { width: 32, height: 25 },
+					units: "mm",
+					colorType: "grayscale",
 				},
-			],
-			autoDisconnect: false,
-		});
+				data: [
+					{
+						type: "pixel",
+						format: "html",
+						flavor: "plain",
+						data: "<p style='font-family:sans-serif;font-size:12px'>Production label</p>",
+					},
+				],
+				autoDisconnect: false,
+			});
 
-		await print({
-			printer: "ZDesigner",
-			config: {
-				size: { width: 100, height: 150 },
-				units: "mm",
-				density: "200",
-			},
-			data: [
-				{
-					type: "pixel",
-					format: "html",
-					flavor: "plain",
-					data: "<p style='font-family:sans-serif;font-size:16px'>Delivery label</p>",
+			await print({
+				printer: "ZDesigner",
+				config: {
+					size: { width: 100, height: 150 },
+					units: "mm",
+					density: "200",
 				},
-			],
-			autoDisconnect: true,
-		});
+				data: [
+					{
+						type: "pixel",
+						format: "html",
+						flavor: "plain",
+						data: "<p style='font-family:sans-serif;font-size:16px'>Delivery label</p>",
+					},
+				],
+				autoDisconnect: true,
+			});
+		} catch {
+			// The hook exposes the failure through its error state.
+		}
 	};
 
 	return (

@@ -10,7 +10,7 @@ export const PrintHtmlLabel = () => {
 	const { print, isPrinting, error } = useQzPrint();
 
 	const handlePrint = () => {
-		print({
+		void print({
 			printer: "ZDesigner",
 			config: {
 				size: { width: 100, height: 150 },
@@ -32,7 +32,7 @@ export const PrintHtmlLabel = () => {
 					`,
 				},
 			],
-		});
+		}).catch(() => undefined);
 	};
 
 	return (
