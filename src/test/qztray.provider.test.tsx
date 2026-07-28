@@ -1,7 +1,9 @@
-import { act, render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 import qz from "qz-tray";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { QzTrayContextProvider } from "../qztray.context";
+import { useQzTray } from "../qztray.hook";
 
 const defaultProps = {
 	certificate: "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
@@ -123,21 +125,21 @@ describe("given QzTrayContextProvider is mounted", () => {
 	});
 
 	describe("when the async certificate provider rejects", () => {
-		it("then exposes the rejection through QZ Tray's certificate handler", async () => {
+		it("then connect rejects with the certificate error", async () => {
 			// given
 			const certificateError = new Error("Certificate request failed");
 			const certificate = vi.fn().mockRejectedValue(certificateError);
-			render(
-				<QzTrayContextProvider {...defaultProps} certificate={certificate} />,
+			const wrapper = ({ children }: { children: ReactNode }) => (
+				<QzTrayContextProvider {...defaultProps} certificate={certificate}>
+					{children}
+				</QzTrayContextProvider>
 			);
-			const handler = vi
-				.mocked(qz.security.setCertificatePromise)
-				.mock.calls.at(-1)?.[0];
+			const { result } = renderHook(() => useQzTray(), { wrapper });
 
 			// when / then
-			await expect((handler as () => Promise<string>)()).rejects.toBe(
-				certificateError,
-			);
+			await act(async () => {
+				await expect(result.current.connect()).rejects.toBe(certificateError);
+			});
 		});
 	});
 });

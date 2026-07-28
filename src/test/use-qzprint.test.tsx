@@ -258,6 +258,99 @@ describe("given useQzPrint is used inside QzTrayContextProvider", () => {
 				await firstPrint;
 			});
 		});
+
+		it("then keeps rejecting overlaps until disconnect cleanup completes", async () => {
+			// given
+			let resolveDisconnect!: () => void;
+			vi.mocked(qz.websocket.disconnect).mockReturnValueOnce(
+				new Promise<void>((resolve) => {
+					resolveDisconnect = resolve;
+				}),
+			);
+			const { result } = renderHook(() => useQzPrint(), { wrapper });
+			let firstPrint!: Promise<void>;
+			await act(async () => {
+				firstPrint = result.current.print(printJob);
+				await vi.waitFor(() => {
+					expect(qz.websocket.disconnect).toHaveBeenCalledTimes(1);
+				});
+			});
+
+			// when
+			let overlappingError: unknown;
+			await act(async () => {
+				try {
+					await result.current.print({ ...printJob, autoDisconnect: false });
+				} catch (error) {
+					overlappingError = error;
+				}
+			});
+
+			// then
+			expect(overlappingError).toEqual(
+				new Error("A print job is already in progress"),
+			);
+
+			resolveDisconnect();
+			await act(async () => {
+				await firstPrint;
+			});
+		});
+	});
+
+	describe("when two hook instances share a pending connection", () => {
+		it("then only the connection owner may disconnect it", async () => {
+			// given
+			let resolveConnection!: () => void;
+			let resolveOwnerPrint!: () => void;
+			vi.mocked(qz.websocket.isActive)
+				.mockReturnValueOnce(false)
+				.mockReturnValueOnce(true)
+				.mockReturnValueOnce(true);
+			vi.mocked(qz.websocket.connect).mockReturnValueOnce(
+				new Promise<void>((resolve) => {
+					resolveConnection = () => {
+						resolve();
+					};
+				}),
+			);
+			vi.mocked(qz.print)
+				.mockReturnValueOnce(
+					new Promise<void>((resolve) => {
+						resolveOwnerPrint = resolve;
+					}),
+				)
+				.mockResolvedValueOnce(undefined);
+			const { result } = renderHook(
+				() => ({
+					owner: useQzPrint(),
+					joiner: useQzPrint(),
+				}),
+				{ wrapper },
+			);
+
+			// when
+			let ownerPrint!: Promise<void>;
+			let joinedPrint!: Promise<void>;
+			await act(async () => {
+				ownerPrint = result.current.owner.print(printJob);
+				joinedPrint = result.current.joiner.print(printJob);
+				await Promise.resolve();
+			});
+			resolveConnection();
+			await act(async () => {
+				await joinedPrint;
+			});
+
+			// then
+			expect(qz.websocket.disconnect).not.toHaveBeenCalled();
+
+			resolveOwnerPrint();
+			await act(async () => {
+				await ownerPrint;
+			});
+			expect(qz.websocket.disconnect).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	describe("when a connection already exists", () => {

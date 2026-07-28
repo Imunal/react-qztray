@@ -159,8 +159,8 @@ describe("given useQzTray is used inside QzTrayContextProvider", () => {
 				const { result } = renderHook(() => useQzTray(), { wrapper });
 
 				// when
-				let firstConnection!: Promise<void>;
-				let secondConnection!: Promise<void>;
+				let firstConnection!: ReturnType<typeof result.current.connect>;
+				let secondConnection!: ReturnType<typeof result.current.connect>;
 				await act(async () => {
 					firstConnection = result.current.connect();
 					secondConnection = result.current.connect();
@@ -175,6 +175,60 @@ describe("given useQzTray is used inside QzTrayContextProvider", () => {
 					await Promise.all([firstConnection, secondConnection]);
 				});
 			});
+		});
+	});
+
+	describe("when connect is retried after a failure", () => {
+		it("then clears the previous error while the retry is in progress", async () => {
+			// given
+			const connectionError = new Error("QZ Tray not running");
+			vi.mocked(qz.websocket.connect).mockRejectedValueOnce(connectionError);
+			const { result } = renderHook(() => useQzTray(), { wrapper });
+			await act(async () => {
+				await expect(result.current.connect()).rejects.toBe(connectionError);
+			});
+			let resolveRetry!: () => void;
+			vi.mocked(qz.websocket.connect).mockReturnValueOnce(
+				new Promise<void>((resolve) => {
+					resolveRetry = resolve;
+				}),
+			);
+
+			// when
+			let retry!: ReturnType<typeof result.current.connect>;
+			await act(async () => {
+				retry = result.current.connect();
+				await Promise.resolve();
+			});
+
+			// then
+			expect(result.current.isConnecting).toBe(true);
+			expect(result.current.error).toBeNull();
+
+			resolveRetry();
+			await act(async () => {
+				await retry;
+			});
+		});
+
+		it("then clears the previous error when the socket is already active", async () => {
+			// given
+			const connectionError = new Error("QZ Tray not running");
+			vi.mocked(qz.websocket.connect).mockRejectedValueOnce(connectionError);
+			const { result } = renderHook(() => useQzTray(), { wrapper });
+			await act(async () => {
+				await expect(result.current.connect()).rejects.toBe(connectionError);
+			});
+			await qz.websocket.connect();
+
+			// when
+			await act(async () => {
+				await result.current.connect();
+			});
+
+			// then
+			expect(result.current.isConnected).toBe(true);
+			expect(result.current.error).toBeNull();
 		});
 	});
 

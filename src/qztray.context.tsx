@@ -8,6 +8,7 @@ import {
 	useState,
 } from "react";
 import type {
+	IQzTrayConnectionLease,
 	IQzTrayContextValue,
 	IQzTrayProviderProps,
 } from "./qztray.interface";
@@ -35,7 +36,9 @@ const QzTrayContextProvider = ({
 		error: null,
 	});
 	const connectPromiseRef = useRef<Promise<void> | null>(null);
-	const connectRef = useRef<(() => Promise<void>) | null>(null);
+	const connectRef = useRef<(() => Promise<IQzTrayConnectionLease>) | null>(
+		null,
+	);
 	const mountedRef = useRef(false);
 
 	useEffect(() => {
@@ -57,6 +60,7 @@ const QzTrayContextProvider = ({
 			certificateProvider as Parameters<
 				typeof qz.security.setCertificatePromise
 			>[0],
+			{ rejectOnFailure: true },
 		);
 		qz.security.setSignaturePromise(signaturePromise);
 
@@ -85,9 +89,10 @@ const QzTrayContextProvider = ({
 		onError,
 	]);
 
-	const connect = useCallback(async () => {
+	const connect = useCallback(async (): Promise<IQzTrayConnectionLease> => {
 		if (connectPromiseRef.current) {
-			return connectPromiseRef.current;
+			await connectPromiseRef.current;
+			return { ownsConnection: false };
 		}
 
 		if (qz.websocket.isActive()) {
@@ -96,14 +101,19 @@ const QzTrayContextProvider = ({
 					...prev,
 					isConnected: true,
 					isConnecting: false,
+					error: null,
 				}));
 			}
-			return;
+			return { ownsConnection: false };
 		}
 
 		const connectionPromise = (async () => {
 			if (mountedRef.current) {
-				setLifeCycleState((prev) => ({ ...prev, isConnecting: true }));
+				setLifeCycleState((prev) => ({
+					...prev,
+					isConnecting: true,
+					error: null,
+				}));
 			}
 
 			try {
@@ -113,6 +123,7 @@ const QzTrayContextProvider = ({
 						...prev,
 						isConnected: true,
 						isConnecting: false,
+						error: null,
 					}));
 					onConnect?.();
 				}
@@ -133,7 +144,8 @@ const QzTrayContextProvider = ({
 		})();
 
 		connectPromiseRef.current = connectionPromise;
-		return connectionPromise;
+		await connectionPromise;
+		return { ownsConnection: true };
 	}, [wsOptions, onConnect, onError]);
 
 	useEffect(() => {

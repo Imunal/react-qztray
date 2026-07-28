@@ -34,7 +34,9 @@ export const ConnectionStatus = () => {
 			<button
 				type="button"
 				onClick={() => {
-					void disconnect().catch(() => undefined);
+					void disconnect().catch((disconnectError) => {
+						console.error("Failed to disconnect from QZ Tray", disconnectError);
+					});
 				}}
 				disabled={!isConnected}
 			>

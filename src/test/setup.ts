@@ -6,18 +6,34 @@ afterEach(() => {
 });
 
 let _isActive = false;
+let _certificateHandler: (() => Promise<string>) | undefined;
+let _rejectOnCertificateFailure = false;
 
 vi.mock("qz-tray", () => ({
 	default: {
 		security: {
 			setSignatureAlgorithm: vi.fn(),
-			setCertificatePromise: vi.fn(),
+			setCertificatePromise: vi.fn(
+				(
+					handler: () => Promise<string>,
+					options?: { rejectOnFailure?: boolean },
+				) => {
+					_certificateHandler = handler;
+					_rejectOnCertificateFailure = options?.rejectOnFailure === true;
+				},
+			),
 			setSignaturePromise: vi.fn(),
 		},
 		websocket: {
-			connect: vi.fn().mockImplementation(() => {
+			connect: vi.fn().mockImplementation(async () => {
+				try {
+					await _certificateHandler?.();
+				} catch (error) {
+					if (_rejectOnCertificateFailure) {
+						throw error;
+					}
+				}
 				_isActive = true;
-				return Promise.resolve();
 			}),
 			disconnect: vi.fn().mockImplementation(() => {
 				_isActive = false;
@@ -39,4 +55,6 @@ vi.mock("qz-tray", () => ({
 
 afterEach(() => {
 	_isActive = false;
+	_certificateHandler = undefined;
+	_rejectOnCertificateFailure = false;
 });

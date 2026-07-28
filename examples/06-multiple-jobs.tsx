@@ -1,17 +1,23 @@
-import { useQzPrint } from "react-qztray";
+import { useQzPrint, useQzTray } from "react-qztray";
 
 /**
  * Print multiple jobs in sequence without disconnecting between them.
- * Set autoDisconnect: false on all jobs except the last one.
+ * Keep autoDisconnect disabled and explicitly manage the shared connection.
  *
  * Useful when printing to multiple printers in one action,
  * e.g. a production label + a delivery label.
  */
 export const PrintMultipleJobs = () => {
 	const { print, isPrinting, error } = useQzPrint();
+	const { connect, disconnect } = useQzTray();
 
 	const handlePrint = async () => {
+		let batchConnected = false;
+
 		try {
+			await connect();
+			batchConnected = true;
+
 			await print({
 				printer: "Godex RT230i",
 				config: {
@@ -45,10 +51,16 @@ export const PrintMultipleJobs = () => {
 						data: "<p style='font-family:sans-serif;font-size:16px'>Delivery label</p>",
 					},
 				],
-				autoDisconnect: true,
+				autoDisconnect: false,
 			});
-		} catch {
-			// The hook exposes the failure through its error state.
+		} catch (jobError) {
+			console.error("Failed to print batch", jobError);
+		} finally {
+			if (batchConnected) {
+				await disconnect().catch((disconnectError) => {
+					console.error("Failed to disconnect from QZ Tray", disconnectError);
+				});
+			}
 		}
 	};
 

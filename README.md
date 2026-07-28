@@ -59,16 +59,13 @@ export const Root = () => (
 **2. Connect and print**
 
 ```tsx
-import { useQzTray, useQzPrint } from 'react-qztray';
+import { useQzPrint } from 'react-qztray';
 
 const PrintButton = () => {
-  const { isConnected, connect } = useQzTray();
   const { print, isPrinting, error } = useQzPrint();
 
   const handlePrint = async () => {
     try {
-      if (!isConnected) await connect();
-
       await print({
         printer: 'ZDesigner',
         config: { size: { width: 100, height: 150 }, units: 'mm' },
@@ -80,10 +77,12 @@ const PrintButton = () => {
   };
 
   return (
-    <button onClick={handlePrint} disabled={isPrinting}>
-      {isPrinting ? 'Printing...' : 'Print'}
-    </button>
-    {error && <p>{error instanceof Error ? error.message : String(error)}</p>}
+    <>
+      <button onClick={handlePrint} disabled={isPrinting}>
+        {isPrinting ? 'Printing...' : 'Print'}
+      </button>
+      {error && <p>{error instanceof Error ? error.message : String(error)}</p>}
+    </>
   );
 };
 ```
@@ -125,7 +124,7 @@ const { isConnected, isConnecting, error, connect, disconnect } = useQzTray();
 | `isConnected` | `boolean` | Whether QZ Tray is currently connected. |
 | `isConnecting` | `boolean` | Whether a connection attempt is in progress. |
 | `error` | `unknown` | Last connection error, or `null`. |
-| `connect` | `() => Promise<void>` | Open the WebSocket connection. |
+| `connect` | `() => Promise<IQzTrayConnectionLease>` | Open the WebSocket connection and report whether this caller owns it. |
 | `disconnect` | `() => Promise<void>` | Close the WebSocket connection. |
 
 ---

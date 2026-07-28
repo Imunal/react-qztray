@@ -30,9 +30,8 @@ export const useQzPrint = () => {
 					throw new Error("Printer is required");
 				}
 
-				const wasConnected = qz.websocket.isActive();
-				await connect();
-				ownsConnection = !wasConnected;
+				const connectionLease = await connect();
+				ownsConnection = connectionLease.ownsConnection;
 
 				const found = await qz.printers.find(printer);
 
@@ -46,21 +45,21 @@ export const useQzPrint = () => {
 				hasOperationError = true;
 				operationError = caughtError;
 				setError(caughtError);
+			}
+
+			try {
+				if (autoDisconnect && ownsConnection && qz.websocket.isActive()) {
+					await qz.websocket.disconnect();
+				}
+			} catch (disconnectError) {
+				if (!hasOperationError) {
+					setError(disconnectError);
+					operationError = disconnectError;
+					hasOperationError = true;
+				}
 			} finally {
 				printInProgressRef.current = false;
 				setIsPrinting(false);
-			}
-
-			if (autoDisconnect && ownsConnection && qz.websocket.isActive()) {
-				try {
-					await qz.websocket.disconnect();
-				} catch (disconnectError) {
-					if (!hasOperationError) {
-						setError(disconnectError);
-						operationError = disconnectError;
-						hasOperationError = true;
-					}
-				}
 			}
 
 			if (hasOperationError) {

@@ -1,6 +1,6 @@
 {
-	"/home/imunal/WebStorm/private/react-qztrayy/src/qzprint.hook.ts": {
-		"path": "/home/imunal/WebStorm/private/react-qztrayy/src/qzprint.hook.ts",
+	"src/qzprint.hook.ts": {
+		"path": "src/qzprint.hook.ts",
 		"statementMap": {
 			"0": {
 				"start": { "line": 6, "column": 13 },
@@ -309,8 +309,8 @@
 			"fnNames": {}
 		}
 	},
-	"/home/imunal/WebStorm/private/react-qztrayy/src/qztray.context.tsx": {
-		"path": "/home/imunal/WebStorm/private/react-qztrayy/src/qztray.context.tsx",
+	"src/qztray.context.tsx": {
+		"path": "src/qztray.context.tsx",
 		"statementMap": {
 			"0": {
 				"start": { "line": 8, "column": 6 },
@@ -783,8 +783,8 @@
 			"fnNames": {}
 		}
 	},
-	"/home/imunal/WebStorm/private/react-qztrayy/src/qztray.hook.ts": {
-		"path": "/home/imunal/WebStorm/private/react-qztrayy/src/qztray.hook.ts",
+	"src/qztray.hook.ts": {
+		"path": "src/qztray.hook.ts",
 		"statementMap": {
 			"0": {
 				"start": { "line": 4, "column": 13 },
