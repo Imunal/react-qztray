@@ -24,12 +24,22 @@ export const ConnectionStatus = () => {
 
 			<button
 				type="button"
-				onClick={connect}
+				onClick={() => {
+					void connect().catch(() => undefined);
+				}}
 				disabled={isConnected || isConnecting}
 			>
 				Connect
 			</button>
-			<button type="button" onClick={disconnect} disabled={!isConnected}>
+			<button
+				type="button"
+				onClick={() => {
+					void disconnect().catch((disconnectError) => {
+						console.error("Failed to disconnect from QZ Tray", disconnectError);
+					});
+				}}
+				disabled={!isConnected}
+			>
 				Disconnect
 			</button>
 		</div>

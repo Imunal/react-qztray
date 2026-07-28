@@ -1,6 +1,14 @@
 import qz from "qz-tray";
-import { createContext, useCallback, useEffect, useState } from "react";
+import {
+	createContext,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import type {
+	IQzTrayConnectionLease,
 	IQzTrayContextValue,
 	IQzTrayProviderProps,
 } from "./qztray.interface";
@@ -27,27 +35,51 @@ const QzTrayContextProvider = ({
 		isConnecting: false,
 		error: null,
 	});
+	const connectPromiseRef = useRef<Promise<void> | null>(null);
+	const connectRef = useRef<(() => Promise<IQzTrayConnectionLease>) | null>(
+		null,
+	);
+	const mountedRef = useRef(false);
+
+	useEffect(() => {
+		mountedRef.current = true;
+
+		return () => {
+			mountedRef.current = false;
+			qz.websocket.setClosedCallbacks([]);
+			qz.websocket.setErrorCallbacks([]);
+		};
+	}, []);
 
 	useEffect(() => {
 		// QZ Tray security registry
 		qz.security.setSignatureAlgorithm(signatureAlgorithm ?? "SHA512");
-		qz.security.setCertificatePromise((resolve) => {
-			if (typeof certificate === "function") {
-				certificate().then(resolve);
-			} else {
-				resolve(certificate);
-			}
-		});
+		const certificateProvider = async () =>
+			typeof certificate === "function" ? certificate() : certificate;
+		qz.security.setCertificatePromise(
+			certificateProvider as Parameters<
+				typeof qz.security.setCertificatePromise
+			>[0],
+			{ rejectOnFailure: true },
+		);
 		qz.security.setSignaturePromise(signaturePromise);
 
 		// QZ Tray callback registry
 		qz.websocket.setClosedCallbacks(() => {
-			setLifeCycleState((prev) => ({ ...prev, isConnected: false }));
+			if (!mountedRef.current) return;
+
+			setLifeCycleState((prev) => ({
+				...prev,
+				isConnected: false,
+				isConnecting: false,
+			}));
 			onDisconnect?.();
 		});
 
 		qz.websocket.setErrorCallbacks((err) => {
-			onError?.(err);
+			if (mountedRef.current) {
+				onError?.(err);
+			}
 		});
 	}, [
 		certificate,
@@ -57,49 +89,101 @@ const QzTrayContextProvider = ({
 		onError,
 	]);
 
-	const connect = useCallback(async () => {
-		setLifeCycleState((prev) => ({ ...prev, isConnecting: true }));
-		try {
-			await qz.websocket.connect(wsOptions);
-			setLifeCycleState((prev) => ({
-				...prev,
-				isConnected: true,
-				isConnecting: false,
-			}));
-			onConnect?.();
-		} catch (error) {
-			setLifeCycleState((prev) => ({
-				...prev,
-				isConnected: false,
-				isConnecting: false,
-				error,
-			}));
-			onError?.(error);
+	const connect = useCallback(async (): Promise<IQzTrayConnectionLease> => {
+		if (connectPromiseRef.current) {
+			await connectPromiseRef.current;
+			return { ownsConnection: false };
 		}
+
+		if (qz.websocket.isActive()) {
+			if (mountedRef.current) {
+				setLifeCycleState((prev) => ({
+					...prev,
+					isConnected: true,
+					isConnecting: false,
+					error: null,
+				}));
+			}
+			return { ownsConnection: false };
+		}
+
+		const connectionPromise = (async () => {
+			if (mountedRef.current) {
+				setLifeCycleState((prev) => ({
+					...prev,
+					isConnecting: true,
+					error: null,
+				}));
+			}
+
+			try {
+				await qz.websocket.connect(wsOptions);
+				if (mountedRef.current) {
+					setLifeCycleState((prev) => ({
+						...prev,
+						isConnected: true,
+						isConnecting: false,
+						error: null,
+					}));
+					onConnect?.();
+				}
+			} catch (error) {
+				if (mountedRef.current) {
+					setLifeCycleState((prev) => ({
+						...prev,
+						isConnected: false,
+						isConnecting: false,
+						error,
+					}));
+					onError?.(error);
+				}
+				throw error;
+			} finally {
+				connectPromiseRef.current = null;
+			}
+		})();
+
+		connectPromiseRef.current = connectionPromise;
+		await connectionPromise;
+		return { ownsConnection: true };
 	}, [wsOptions, onConnect, onError]);
 
 	useEffect(() => {
-		if (autoConnect) {
-			connect();
-		}
-	}, [autoConnect, connect]);
+		connectRef.current = connect;
+	}, [connect]);
 
-	const disconnect = async () => {
-		await qz.websocket.disconnect();
-		setLifeCycleState((prev) => ({ ...prev, isConnected: false }));
-		onDisconnect?.();
-	};
+	useEffect(() => {
+		if (autoConnect) {
+			void connectRef.current?.().catch(() => undefined);
+		}
+	}, [autoConnect]);
+
+	const disconnect = useCallback(async () => {
+		try {
+			await qz.websocket.disconnect();
+		} finally {
+			if (mountedRef.current) {
+				setLifeCycleState((prev) => ({
+					...prev,
+					isConnected: false,
+					isConnecting: false,
+				}));
+			}
+		}
+	}, []);
+	const contextValue = useMemo(
+		() => ({
+			isConnected: lifeCycleState.isConnected,
+			isConnecting: lifeCycleState.isConnecting,
+			error: lifeCycleState.error,
+			connect,
+			disconnect,
+		}),
+		[lifeCycleState, connect, disconnect],
+	);
 
 	return (
-		<QzTrayContext.Provider
-			value={{
-				isConnected: lifeCycleState.isConnected,
-				isConnecting: lifeCycleState.isConnecting,
-				error: lifeCycleState.error,
-				connect,
-				disconnect,
-			}}
-		>
+		<QzTrayContext.Provider value={contextValue}>
 			{children}
 		</QzTrayContext.Provider>
 	);

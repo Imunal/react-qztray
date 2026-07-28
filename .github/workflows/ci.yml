@@ -9,12 +9,17 @@ jobs:
   ci:
     name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.32.1
+          version: 11.13.1
 
       - uses: actions/setup-node@v6
         with:
@@ -30,8 +35,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
-        run: pnpm test
+      - name: Test with coverage
+        run: pnpm test:coverage
+
+      - name: Report coverage
+        if: always()
+        uses: davelosert/vitest-coverage-report-action@v2
 
       - name: Build
         run: pnpm build

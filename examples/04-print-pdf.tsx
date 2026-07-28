@@ -9,7 +9,7 @@ export const PrintPdf = ({ pdfUrl }: { pdfUrl: string }) => {
 	const { print, isPrinting, error } = useQzPrint();
 
 	const handlePrint = () => {
-		print({
+		void print({
 			printer: "ZDesigner",
 			config: {
 				size: { width: 100, height: 150 },
@@ -25,7 +25,7 @@ export const PrintPdf = ({ pdfUrl }: { pdfUrl: string }) => {
 					data: pdfUrl,
 				},
 			],
-		});
+		}).catch(() => undefined);
 	};
 
 	return (
@@ -48,7 +48,7 @@ export const PrintPdfBase64 = ({ base64Pdf }: { base64Pdf: string }) => {
 	const { print, isPrinting, error } = useQzPrint();
 
 	const handlePrint = () => {
-		print({
+		void print({
 			printer: "ZDesigner",
 			config: {
 				size: { width: 100, height: 150 },
@@ -62,7 +62,7 @@ export const PrintPdfBase64 = ({ base64Pdf }: { base64Pdf: string }) => {
 					data: base64Pdf,
 				},
 			],
-		});
+		}).catch(() => undefined);
 	};
 
 	return (

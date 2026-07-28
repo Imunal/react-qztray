@@ -28,10 +28,15 @@ export interface IQzTrayProviderProps {
 
 	children: ReactNode;
 }
+
+export interface IQzTrayConnectionLease {
+	ownsConnection: boolean;
+}
+
 export interface IQzTrayContextValue {
 	isConnected: boolean;
 	isConnecting: boolean;
 	error: unknown;
-	connect: () => Promise<void>;
+	connect: () => Promise<IQzTrayConnectionLease>;
 	disconnect: () => Promise<void>;
 }

@@ -1,51 +1,67 @@
-import { useQzPrint } from "react-qztray";
+import { useQzPrint, useQzTray } from "react-qztray";
 
 /**
  * Print multiple jobs in sequence without disconnecting between them.
- * Set autoDisconnect: false on all jobs except the last one.
+ * Keep autoDisconnect disabled and explicitly manage the shared connection.
  *
  * Useful when printing to multiple printers in one action,
  * e.g. a production label + a delivery label.
  */
 export const PrintMultipleJobs = () => {
 	const { print, isPrinting, error } = useQzPrint();
+	const { connect, disconnect } = useQzTray();
 
 	const handlePrint = async () => {
-		await print({
-			printer: "Godex RT230i",
-			config: {
-				size: { width: 32, height: 25 },
-				units: "mm",
-				colorType: "grayscale",
-			},
-			data: [
-				{
-					type: "pixel",
-					format: "html",
-					flavor: "plain",
-					data: "<p style='font-family:sans-serif;font-size:12px'>Production label</p>",
-				},
-			],
-			autoDisconnect: false,
-		});
+		let batchConnected = false;
 
-		await print({
-			printer: "ZDesigner",
-			config: {
-				size: { width: 100, height: 150 },
-				units: "mm",
-				density: "200",
-			},
-			data: [
-				{
-					type: "pixel",
-					format: "html",
-					flavor: "plain",
-					data: "<p style='font-family:sans-serif;font-size:16px'>Delivery label</p>",
+		try {
+			await connect();
+			batchConnected = true;
+
+			await print({
+				printer: "Godex RT230i",
+				config: {
+					size: { width: 32, height: 25 },
+					units: "mm",
+					colorType: "grayscale",
 				},
-			],
-			autoDisconnect: true,
-		});
+				data: [
+					{
+						type: "pixel",
+						format: "html",
+						flavor: "plain",
+						data: "<p style='font-family:sans-serif;font-size:12px'>Production label</p>",
+					},
+				],
+				autoDisconnect: false,
+			});
+
+			await print({
+				printer: "ZDesigner",
+				config: {
+					size: { width: 100, height: 150 },
+					units: "mm",
+					density: "200",
+				},
+				data: [
+					{
+						type: "pixel",
+						format: "html",
+						flavor: "plain",
+						data: "<p style='font-family:sans-serif;font-size:16px'>Delivery label</p>",
+					},
+				],
+				autoDisconnect: false,
+			});
+		} catch (jobError) {
+			console.error("Failed to print batch", jobError);
+		} finally {
+			if (batchConnected) {
+				await disconnect().catch((disconnectError) => {
+					console.error("Failed to disconnect from QZ Tray", disconnectError);
+				});
+			}
+		}
 	};
 
 	return (

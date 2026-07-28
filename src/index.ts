@@ -10,6 +10,7 @@ export { QzTrayContextProvider as QzTrayProvider } from "./qztray.context";
 export { useQzTray } from "./qztray.hook";
 export type {
 	IPrintOptions,
+	IQzTrayConnectionLease,
 	IQzTrayContextValue,
 	IQzTrayProviderProps,
 } from "./qztray.interface";

@@ -8,7 +8,7 @@ export const PrintZpl = () => {
 	const { print, isPrinting, error } = useQzPrint();
 
 	const handlePrint = () => {
-		print({
+		void print({
 			printer: "ZDesigner",
 			data: [
 				{
@@ -23,7 +23,7 @@ export const PrintZpl = () => {
 					`,
 				},
 			],
-		});
+		}).catch(() => undefined);
 	};
 
 	return (
@@ -45,7 +45,7 @@ export const PrintEscPos = () => {
 	const { print, isPrinting, error } = useQzPrint();
 
 	const handlePrint = () => {
-		print({
+		void print({
 			printer: "EPSON TM-T88V",
 			data: [
 				{
@@ -55,7 +55,7 @@ export const PrintEscPos = () => {
 					data: "Hello, receipt!\n\n\n",
 				},
 			],
-		});
+		}).catch(() => undefined);
 	};
 
 	return (

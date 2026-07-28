@@ -1,7 +1,9 @@
-import { render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 import qz from "qz-tray";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { QzTrayContextProvider } from "../qztray.context";
+import { useQzTray } from "../qztray.hook";
 
 const defaultProps = {
 	certificate: "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----",
@@ -57,6 +59,9 @@ describe("given QzTrayContextProvider is mounted", () => {
 			// given
 			// when
 			render(<QzTrayContextProvider {...defaultProps} autoConnect />);
+			await act(async () => {
+				await Promise.resolve();
+			});
 
 			// then
 			expect(qz.websocket.connect).toHaveBeenCalled();
@@ -71,6 +76,70 @@ describe("given QzTrayContextProvider is mounted", () => {
 
 			// then
 			expect(qz.websocket.connect).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("when the provider unmounts", () => {
+		it("then clears QZ Tray callbacks", () => {
+			// given / when
+			const { unmount } = render(<QzTrayContextProvider {...defaultProps} />);
+			unmount();
+
+			// then
+			expect(qz.websocket.setClosedCallbacks).toHaveBeenLastCalledWith([]);
+			expect(qz.websocket.setErrorCallbacks).toHaveBeenLastCalledWith([]);
+		});
+	});
+
+	describe("when autoConnect receives unstable callback props", () => {
+		it("then does not reconnect after a parent rerender", async () => {
+			// given
+			const { rerender } = render(
+				<QzTrayContextProvider
+					{...defaultProps}
+					autoConnect
+					onConnect={() => undefined}
+					wsOptions={{}}
+				/>,
+			);
+			await act(async () => {
+				await Promise.resolve();
+			});
+
+			// when
+			await act(async () => {
+				rerender(
+					<QzTrayContextProvider
+						{...defaultProps}
+						autoConnect
+						onConnect={() => undefined}
+						wsOptions={{}}
+					/>,
+				);
+				await Promise.resolve();
+			});
+
+			// then
+			expect(qz.websocket.connect).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe("when the async certificate provider rejects", () => {
+		it("then connect rejects with the certificate error", async () => {
+			// given
+			const certificateError = new Error("Certificate request failed");
+			const certificate = vi.fn().mockRejectedValue(certificateError);
+			const wrapper = ({ children }: { children: ReactNode }) => (
+				<QzTrayContextProvider {...defaultProps} certificate={certificate}>
+					{children}
+				</QzTrayContextProvider>
+			);
+			const { result } = renderHook(() => useQzTray(), { wrapper });
+
+			// when / then
+			await act(async () => {
+				await expect(result.current.connect()).rejects.toBe(certificateError);
+			});
 		});
 	});
 });
