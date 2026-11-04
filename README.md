@@ -35,55 +35,62 @@ pnpm add react-qztray
 **1. Wrap your app with `QzTrayProvider`**
 
 ```tsx
-import { QzTrayProvider } from 'react-qztray';
+import { QzTrayProvider } from "react-qztray";
 
 export const Root = () => (
-  <QzTrayProvider
-    certificate="-----BEGIN CERTIFICATE-----\nYOUR_CERT_HERE\n-----END CERTIFICATE-----"
-    signatureAlgorithm="SHA512"
-    signaturePromise={(toSign) => (resolve) => {
-      fetch('/api/sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toSign }),
-      })
-        .then((res) => res.text())
-        .then(resolve);
-    }}
-  >
-    <App />
-  </QzTrayProvider>
+	<QzTrayProvider
+		certificate="-----BEGIN CERTIFICATE-----\nYOUR_CERT_HERE\n-----END CERTIFICATE-----"
+		signatureAlgorithm="SHA512"
+		signaturePromise={(toSign) => (resolve) => {
+			fetch("/api/sign", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ toSign }),
+			})
+				.then((res) => res.text())
+				.then(resolve);
+		}}
+	>
+		<App />
+	</QzTrayProvider>
 );
 ```
 
 **2. Connect and print**
 
 ```tsx
-import { useQzPrint } from 'react-qztray';
+import { useQzPrint } from "react-qztray";
 
 const PrintButton = () => {
-  const { print, isPrinting, error } = useQzPrint();
+	const { print, isPrinting, error } = useQzPrint();
 
-  const handlePrint = async () => {
-    try {
-      await print({
-        printer: 'ZDesigner',
-        config: { size: { width: 100, height: 150 }, units: 'mm' },
-        data: [{ type: 'pixel', format: 'html', flavor: 'plain', data: '<h1>Hello!</h1>' }],
-      });
-    } catch (printError) {
-      console.error(printError);
-    }
-  };
+	const handlePrint = async () => {
+		try {
+			await print({
+				printer: "ZDesigner",
+				config: { size: { width: 100, height: 150 }, units: "mm" },
+				data: [
+					{
+						type: "pixel",
+						format: "html",
+						flavor: "plain",
+						data: "<h1>Hello!</h1>",
+					},
+				],
+			});
+		} catch (printError) {
+			console.error(printError);
+		}
+	};
 
-  return (
-    <>
-      <button onClick={handlePrint} disabled={isPrinting}>
-        {isPrinting ? 'Printing...' : 'Print'}
-      </button>
-      {error && <p>{error instanceof Error ? error.message : String(error)}</p>}
-    </>
-  );
+	return (
+		<>
+			<button onClick={handlePrint} disabled={isPrinting}>
+				{isPrinting ? "Printing..." : "Print"}
+			</button>
+			{error && <p>{error instanceof Error ? error.message : String(error)}</p>}
+		</>
+	);
 };
 ```
 
@@ -96,16 +103,16 @@ const PrintButton = () => {
 Provides QZ Tray context to all child hooks. Place it at the root of your app.
 Use one provider per application because QZ Tray keeps a global WebSocket and callback registry.
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `certificate` | `string \| (() => Promise<string>)` | ✓ | Public PEM certificate from QZ Tray's signing tool. Accepts a string or an async function that fetches it. |
-| `signaturePromise` | `PromiseFactory` | ✓ | Factory function that signs the request. Should call your backend. |
-| `signatureAlgorithm` | `"SHA1" \| "SHA256" \| "SHA512"` | | Signing algorithm. Defaults to `"SHA512"`. |
-| `wsOptions` | `ConnectOptions` | | WebSocket connection options (host, port, keepAlive, retries, delay). |
-| `autoConnect` | `boolean` | | Connect to QZ Tray automatically on mount. Defaults to `false`. |
-| `onConnect` | `() => void` | | Called when the connection is established. |
-| `onDisconnect` | `() => void` | | Called when the connection is closed. |
-| `onError` | `(error: unknown) => void` | | Called on connection error. |
+| Prop                 | Type                                | Required | Description                                                                                                |
+| -------------------- | ----------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `certificate`        | `string \| (() => Promise<string>)` | ✓        | Public PEM certificate from QZ Tray's signing tool. Accepts a string or an async function that fetches it. |
+| `signaturePromise`   | `PromiseFactory`                    | ✓        | Factory function that signs the request. Should call your backend.                                         |
+| `signatureAlgorithm` | `"SHA1" \| "SHA256" \| "SHA512"`    |          | Signing algorithm. Defaults to `"SHA512"`.                                                                 |
+| `wsOptions`          | `ConnectOptions`                    |          | WebSocket connection options (host, port, keepAlive, retries, delay).                                      |
+| `autoConnect`        | `boolean`                           |          | Connect to QZ Tray automatically on mount. Defaults to `false`.                                            |
+| `onConnect`          | `() => void`                        |          | Called when the connection is established.                                                                 |
+| `onDisconnect`       | `() => void`                        |          | Called when the connection is closed.                                                                      |
+| `onError`            | `(error: unknown) => void`          |          | Called on connection error.                                                                                |
 
 `connect()` rejects when the connection fails. `onError` and the provider's `error` state are also updated.
 
@@ -119,13 +126,13 @@ Access connection state and controls. Must be used inside `QzTrayProvider`.
 const { isConnected, isConnecting, error, connect, disconnect } = useQzTray();
 ```
 
-| Return | Type | Description |
-|---|---|---|
-| `isConnected` | `boolean` | Whether QZ Tray is currently connected. |
-| `isConnecting` | `boolean` | Whether a connection attempt is in progress. |
-| `error` | `unknown` | Last connection error, or `null`. |
-| `connect` | `() => Promise<IQzTrayConnectionLease>` | Open the WebSocket connection and report whether this caller owns it. |
-| `disconnect` | `() => Promise<void>` | Close the WebSocket connection. |
+| Return         | Type                                    | Description                                                           |
+| -------------- | --------------------------------------- | --------------------------------------------------------------------- |
+| `isConnected`  | `boolean`                               | Whether QZ Tray is currently connected.                               |
+| `isConnecting` | `boolean`                               | Whether a connection attempt is in progress.                          |
+| `error`        | `unknown`                               | Last connection error, or `null`.                                     |
+| `connect`      | `() => Promise<IQzTrayConnectionLease>` | Open the WebSocket connection and report whether this caller owns it. |
+| `disconnect`   | `() => Promise<void>`                   | Close the WebSocket connection.                                       |
 
 ---
 
@@ -137,20 +144,20 @@ Send print jobs to any printer visible to QZ Tray. Must be used inside `QzTrayPr
 const { print, isPrinting, error } = useQzPrint();
 ```
 
-| Return | Type | Description |
-|---|---|---|
-| `print` | `(options: IPrintOptions) => Promise<void>` | Send a print job. Connects automatically if not connected and rejects on failure. |
-| `isPrinting` | `boolean` | Whether a print job is in progress. |
-| `error` | `unknown` | Last print error, or `null`. |
+| Return       | Type                                        | Description                                                                       |
+| ------------ | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `print`      | `(options: IPrintOptions) => Promise<void>` | Send a print job. Connects automatically if not connected and rejects on failure. |
+| `isPrinting` | `boolean`                                   | Whether a print job is in progress.                                               |
+| `error`      | `unknown`                                   | Last print error, or `null`.                                                      |
 
 **`IPrintOptions`**
 
-| Option | Type | Required | Description |
-|---|---|---|---|
-| `printer` | `string` | ✓ | Printer name as it appears in the OS. |
-| `data` | `PrintData[]` | ✓ | Array of print data objects. |
-| `config` | `PrinterOptions` | | Paper size, units, density, orientation, etc. |
-| `autoDisconnect` | `boolean` | | Disconnect after the job completes only when this call opened the connection. Defaults to `true`. |
+| Option           | Type             | Required | Description                                                                                       |
+| ---------------- | ---------------- | -------- | ------------------------------------------------------------------------------------------------- |
+| `printer`        | `string`         | ✓        | Printer name as it appears in the OS.                                                             |
+| `data`           | `PrintData[]`    | ✓        | Array of print data objects.                                                                      |
+| `config`         | `PrinterOptions` |          | Paper size, units, density, orientation, etc.                                                     |
+| `autoDisconnect` | `boolean`        |          | Disconnect after the job completes only when this call opened the connection. Defaults to `true`. |
 
 Only one print job can run at a time per `useQzPrint` instance. Overlapping calls reject with an error.
 
